@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>초등학교 반 편성 v1.0 (KSMS APPs)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Jua) -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'jua': ['"Jua"', 'sans-serif'],
+                    },
+                    colors: {
+                        'school-yellow': '#FCCD2A',
+                        'school-blue': '#AEE2FF',
+                        'school-green': '#98EECC',
+                        'board-green': '#2C5F2D',
+                        'chalk-white': '#F0F0F0',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: #FFF8E1;
+            background-image: radial-gradient(#FCCD2A 15%, transparent 16%), radial-gradient(#FCCD2A 15%, transparent 16%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            margin: 0;
+        }
+
+        .chalkboard {
+            background-color: #2C5F2D;
+            border: 12px solid #8B4513;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            color: #F0F0F0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .post-it {
+            background-color: #FFF740;
+            color: #333;
+            font-family: 'Jua', sans-serif;
+            font-size: 1.1rem;
+            transform: rotate(0deg); 
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0;
+        }
+        
+        .post-it:hover {
+            transform: scale(1.02);
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .post-it:active {
+            cursor: grabbing;
+        }
+
+        .post-it.girl { background-color: #FFB7B2; }
+        .post-it.boy { background-color: #AEE2FF; }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FCCD2A;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FFA500;
+        }
+
+        .btn-bounce {
+            transition: transform 0.1s;
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+        
+        .droppable-hover {
+            background-color: rgba(255,255,255,0.2);
+            border: 2px dashed #FFF;
+        }
+
+        .upload-drag-over {
+            background-color: #d1fae5;
+            border-color: #10b981;
+            border-style: solid;
+        }
+
+        .board-content {
+            flex: 1;
+            padding-right: 4px;
+            min-height: 200px; 
+        }
+        
+        header.sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: rgba(255, 248, 225, 0.95);
+            backdrop-filter: blur(5px);
+            border-bottom: 2px solid #FCCD2A;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative">
+
+    <!-- Header (Sticky) -->
+    <header class="sticky-header flex items-center justify-center relative px-4">
+        <h1 class="text-3xl md:text-5xl text-orange-500 drop-shadow-lg text-center w-full">
+            <i class="fas fa-school mr-3"></i>초등학교 반 편성 v1.0 (KSMS APPs)
+        </h1>
+        
+        <button id="btnFullscreen" class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white text-gray-600 w-10 h-10 rounded-lg shadow-md hover:bg-orange-100 hover:text-orange-500 transition flex items-center justify-center" title="전체화면">
+            <i class="fas fa-expand text-lg"></i>
+        </button>
+    </header>
+
+    <main class="p-4 md:p-8">
+        
+        <!-- Controls Container: 5 Columns Layout with Square Aspect Ratio -->
+        <div class="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-16 mb-8 mt-4 px-2">
+            
+            <!-- Step 0: Info -->
+            <div class="relative z-10 w-full">
+                <div class="aspect-square w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-gray-300 relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-4 -top-4 bg-gray-400 w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md z-10">0</div>
+                    <h2 class="text-2xl text-gray-600 mb-2 flex items-center gap-2">
+                        <i class="fas fa-info-circle"></i> 안내 말씀
+                    </h2>
+<div class="flex-1 space-y-2 text-sm text-gray-700 overflow-y-auto">
+    <p class="leading-relaxed">
+초등학교 반 편성 앱은 일반적인 모니터 규격(1920x1080)에 맞추어 설계되었습니다. 제가 근무하는 학교의 사례를 모델로 제작했기 때문에 광범위한 적용이 어려울 수 있습니다.
+    </p>
+</div>
+<div class="text-right mt-2 text-gray-500 text-sm shrink-0">
+    <p>2025년 12월.</p>
+    <p>부산에 사는 나이 많은 교사 조기석.</p>
+</div>
+                </div>
+                <!-- Arrow -->
+                <div class="hidden xl:flex absolute -right-12 top-1/2 transform -translate-y-1/2 w-8 h-8 items-center justify-center text-gray-400">
+                    <i class="fas fa-chevron-right text-4xl"></i>
+                </div>
+            </div>
+
+            <!-- Step 1: Upload -->
+            <div class="relative z-10 w-full group">
+                <div class="aspect-square w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-school-green relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-4 -top-4 bg-school-green w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md z-10">1</div>
+                    <h2 class="text-2xl text-green-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-file-csv"></i> 명단 불러오기
+                    </h2>
+                    <div class="space-y-3 flex-1 flex flex-col justify-center">
+                        <label id="dropZone" class="block w-full h-full cursor-pointer bg-green-50 hover:bg-green-100 border-2 border-dashed border-green-300 rounded-xl p-4 text-center transition flex flex-col items-center justify-center">
+                            <span class="text-gray-500 pointer-events-none text-sm"><i class="fas fa-cloud-upload-alt text-2xl mb-1"></i><br>CSV 파일을 드래그하거나<br>클릭해서 올려주세요</span>
+                            <input type="file" id="csvFile" accept=".csv" class="hidden">
+                        </label>
+                        <div class="flex justify-between items-center text-sm">
+                            <span id="fileNameDisplay" class="text-gray-400 truncate max-w-[120px]">선택된 파일 없음</span>
+                            <button id="btnSample" class="text-green-600 hover:underline hover:text-green-800 text-xs">
+                                <i class="fas fa-download"></i> 샘플 받기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Arrow -->
+                <div class="hidden xl:flex absolute -right-12 top-1/2 transform -translate-y-1/2 w-8 h-8 items-center justify-center text-gray-400">
+                    <i class="fas fa-chevron-right text-4xl"></i>
+                </div>
+            </div>
+
+            <!-- Step 2: Settings -->
+            <div class="relative z-10 w-full">
+                <div class="aspect-square w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-school-yellow relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-4 -top-4 bg-school-yellow w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md z-10">2</div>
+                    <h2 class="text-2xl text-orange-600 mb-2 flex items-center gap-2">
+                        <i class="fas fa-sliders-h"></i> 반 설정하기
+                    </h2>
+                    <div class="space-y-4 flex-1 flex flex-col justify-center">
+                        <div>
+                            <label class="block text-gray-600 mb-1 text-base">몇 개의 반으로 나눌까요?</label>
+                            <div class="flex items-center gap-2 justify-center">
+                                <button id="btnDecreaseClass" class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 btn-bounce text-xl font-bold">-</button>
+                                <input type="number" id="classCount" value="3" min="1" max="20" class="flex-1 text-center text-2xl border-2 border-orange-200 rounded-xl py-1 focus:outline-none focus:border-orange-400 max-w-[100px]">
+                                <button id="btnIncreaseClass" class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 btn-bounce text-xl font-bold">+</button>
+                            </div>
+                        </div>
+                        <!-- Options -->
+                        <div class="text-sm text-gray-700 bg-orange-50 p-2 rounded-lg flex flex-col gap-2 items-center">
+                            <div class="flex items-center gap-2 w-full justify-center">
+                                <span class="font-bold text-base whitespace-nowrap"><i class="fas fa-sort mr-1"></i>순서</span>
+                                <div class="flex gap-1">
+                                    <label class="flex items-center cursor-pointer hover:bg-orange-100 px-2 py-1 rounded transition">
+                                        <input type="radio" name="genderOrder" value="maleFirst" checked class="form-radio text-orange-500 h-4 w-4 accent-orange-500 shrink-0">
+                                        <span class="ml-1 text-sm">남&gt;여</span>
+                                    </label>
+                                    <label class="flex items-center cursor-pointer hover:bg-orange-100 px-2 py-1 rounded transition">
+                                        <input type="radio" name="genderOrder" value="femaleFirst" class="form-radio text-orange-500 h-4 w-4 accent-orange-500 shrink-0">
+                                        <span class="ml-1 text-sm">여&gt;남</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Arrow -->
+                <div class="hidden xl:flex absolute -right-12 top-1/2 transform -translate-y-1/2 w-8 h-8 items-center justify-center text-gray-400">
+                    <i class="fas fa-chevron-right text-4xl"></i>
+                </div>
+            </div>
+
+            <!-- Step 3: Action -->
+            <div class="relative z-10 w-full">
+                <div class="aspect-square w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-school-blue relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-4 -top-4 bg-school-blue w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md z-10">3</div>
+                    <h2 class="text-2xl text-blue-600 mb-2 flex items-center gap-2">
+                        <i class="fas fa-magic"></i> 반 편성하기
+                    </h2>
+                    
+                    <div class="flex-1 flex items-center justify-center w-full">
+                        <button id="btnAssign" class="w-full py-8 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl text-2xl shadow-lg btn-bounce transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2" disabled>
+                            <i class="fas fa-bolt text-4xl mb-2"></i>
+                            <span>편성 시작!</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Arrow -->
+                <div class="hidden xl:flex absolute -right-12 top-1/2 transform -translate-y-1/2 w-8 h-8 items-center justify-center text-gray-400">
+                    <i class="fas fa-chevron-right text-4xl"></i>
+                </div>
+            </div>
+
+            <!-- Step 4: Download & Settings -->
+            <div class="relative z-10 w-full">
+                <div class="aspect-square w-full bg-white p-6 rounded-3xl shadow-xl border-4 border-purple-300 relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-4 -top-4 bg-purple-400 w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-md z-10">4</div>
+                    <h2 class="text-2xl text-purple-600 mb-2 flex items-center gap-2">
+                        <i class="fas fa-save"></i> 결과 저장
+                    </h2>
+                    
+                    <!-- Number Settings Area -->
+                    <div id="numberSettings" class="flex-1 mb-2 text-xs text-gray-700 space-y-2 overflow-y-auto flex flex-col justify-center">
+                        <!-- Dynamic Inputs Generated via JS -->
+                    </div>
+
+                    <button id="btnDownload" class="w-full py-3 bg-white border-2 border-purple-400 text-purple-500 hover:bg-purple-50 rounded-2xl text-lg shadow-md btn-bounce transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1 shrink-0" disabled>
+                        <span><i class="fas fa-file-excel text-xl mr-1"></i>엑셀 저장</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Results Area -->
+        <div id="resultArea" class="w-full max-w-[98%] mx-auto hidden animate-fade-in-up px-4 mb-12">
+            <div class="text-center mb-6 relative">
+                <div class="inline-flex items-center justify-center gap-4">
+                    <h3 class="text-3xl text-gray-700">
+                        <i class="fas fa-chalkboard-teacher text-green-700 mr-2"></i>편성 결과<span class="align-middle font-normal">(드래그 앤 드롭 가능)</span>
+                    </h3>
+                    
+                    <!-- Undo/Redo Buttons -->
+                    <div class="flex gap-2 ml-4">
+                        <button id="btnUndo" class="w-10 h-10 bg-white border border-gray-300 rounded-full shadow hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600" title="이전 (실행 취소)" disabled>
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button id="btnRedo" class="w-10 h-10 bg-white border border-gray-300 rounded-full shadow hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600" title="이후 (다시 실행)" disabled>
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classes Container -->
+            <div id="classesContainer">
+                <!-- Classes will be generated here -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Logic Variables ---
+        let students = [];
+        let classBuckets = []; 
+        let globalNewGrade = null; 
+        
+        let historyStack = [];
+        let historyIndex = -1;
+
+        const classNamesList = ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차', '카', '타', '파', '하', '거', '너', '더', '러', '머', '버'];
+        
+        // --- DOM Elements ---
+        const $ = (id) => document.getElementById(id);
+        const fileInput = $('csvFile');
+        const dropZone = $('dropZone');
+        const btnAssign = $('btnAssign');
+        const btnDownload = $('btnDownload');
+        const fileNameDisplay = $('fileNameDisplay');
+        const classesContainer = $('classesContainer');
+        const resultArea = $('resultArea');
+        const genderOrderRadios = document.querySelectorAll('input[name="genderOrder"]');
+        const btnFullscreen = $('btnFullscreen');
+        const btnUndo = $('btnUndo');
+        const btnRedo = $('btnRedo');
+        const numberSettingsDiv = $('numberSettings');
+        const btnDecreaseClass = $('btnDecreaseClass');
+        const btnIncreaseClass = $('btnIncreaseClass');
+
+        // --- Event Listeners ---
+
+        btnDecreaseClass.addEventListener('click', () => adjustClassCount(-1));
+        btnIncreaseClass.addEventListener('click', () => adjustClassCount(1));
+
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                btnFullscreen.innerHTML = '<i class="fas fa-compress text-lg"></i>';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    btnFullscreen.innerHTML = '<i class="fas fa-expand text-lg"></i>';
+                }
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('upload-drag-over'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('upload-drag-over'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('upload-drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processFile(files[0]);
+        });
+        
+        genderOrderRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                updateNumberSettingsUI();
+                if (classBuckets.length > 0) {
+                    // Update: Save history AFTER re-sorting to keep stack consistent
+                    classBuckets.forEach(cls => sortClassBucket(cls));
+                    renderClasses();
+                    saveHistory(); 
+                }
+            });
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) processFile(file);
+        });
+
+        $('btnSample').addEventListener('click', () => {
+            // New Sample Data (Based on uploaded file)
+            const sampleData = `\uFEFF학년,반,번호,성명,성별,특이사항,순번
+3,1,1,강민서,여,,1
+3,1,2,박지우,여,쌍생아1,3
+3,1,3,윤지아,여,,2
+3,1,31,강지호,남,,3
+3,1,32,박서준,남,,2
+3,1,33,윤주원,남,,1
+3,2,1,권지유,여,,2
+3,2,2,배다은,여,쌍생아2,1
+3,2,3,송시아,여,,3
+3,2,31,고선우,남,,1
+3,2,32,권민재,남,,4
+3,2,33,서건우,남,,3
+3,2,34,송준우,남,,2
+3,3,1,박지은,여,쌍생아1,4
+3,3,2,백서아,여,,3
+3,3,3,손예은,여,,1
+3,3,4,심주아,여,,2
+3,3,31,곽로운,남,A,2
+3,3,32,남진서,남,,1
+3,3,33,노준영,남,,4
+3,3,34,문지후,남,,5
+3,3,35,배지안,남,쌍생아2,3`;
+            downloadText('초등학교_반_편성_샘플.csv', sampleData);
+        });
+
+        btnAssign.addEventListener('click', () => {
+            const count = parseInt($('classCount').value);
+            if (count < 1) return;
+            
+            assignClassesByRank(count); 
+            
+            historyStack = [];
+            historyIndex = -1;
+            saveHistory(); 
+
+            renderClasses();
+            
+            resultArea.classList.remove('hidden');
+            btnDownload.disabled = false;
+            btnAssign.classList.remove('animate-pulse');
+            resultArea.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        btnUndo.addEventListener('click', () => {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreHistory();
+            }
+        });
+
+        btnRedo.addEventListener('click', () => {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                restoreHistory();
+            }
+        });
+
+        btnDownload.addEventListener('click', exportToExcel);
+
+        // --- Core Logic ---
+
+        async function processFile(file) {
+            // Allow csv and excel types roughly
+            if (!file.name.endsWith('.csv') && file.type !== "text/csv" && file.type !== "application/vnd.ms-excel") {
+                alert('CSV 파일만 가능해요!');
+                return;
+            }
+            fileNameDisplay.innerText = file.name;
+            fileNameDisplay.classList.remove('text-gray-400');
+            fileNameDisplay.classList.add('text-green-600', 'font-bold');
+
+            // 1. Try reading as UTF-8 first
+            let text;
+            try {
+                const buffer = await file.arrayBuffer();
+                const decoder = new TextDecoder('utf-8', { fatal: true });
+                text = decoder.decode(buffer);
+            } catch (e) {
+                console.log('UTF-8 decoding failed, trying EUC-KR');
+                const buffer = await file.arrayBuffer();
+                const decoder = new TextDecoder('euc-kr');
+                text = decoder.decode(buffer);
+            }
+
+            const rows = parseCSV(text);
+
+            if (rows.length < 2) {
+                alert('데이터가 너무 적어요! (제목줄 + 학생 최소 1명)');
+                return;
+            }
+
+            const headers = rows[0];
+            const nameIdx = getColIndex(headers, ['성명', '이름', 'name', 'Name']);
+            const genderIdx = getColIndex(headers, ['성별', 'gender', 'Sex']);
+            const infoIdx = getColIndex(headers, ['특이사항', '비고', '정보', 'note', 'Level']);
+            const rankIdx = getColIndex(headers, ['순번', '등수', '전교석차', '석차', 'Rank', 'Order', '번호']);
+            const oldClassIdx = getColIndex(headers, ['반', '학반', 'Class', '이전반']);
+            const oldGradeIdx = getColIndex(headers, ['학년', 'Grade']);
+            const oldNumIdx = getColIndex(headers, ['번호', 'Number', 'No']);
+
+            if (nameIdx === -1) {
+                alert('CSV 파일에서 "성명" 또는 "이름" 열을 찾을 수 없어요.');
+                return;
+            }
+            
+            const finalNameIdx = nameIdx;
+
+            students = [];
+            let detectedGrade = null;
+
+            for (let i = 1; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r[finalNameIdx]) continue;
+                
+                const name = r[finalNameIdx].trim();
+                if (!name) continue;
+
+                const gender = genderIdx > -1 ? (r[genderIdx] || '').trim() : '';
+                const info = infoIdx > -1 ? (r[infoIdx] || '').trim() : '';
+                let rank = 999;
+                if (rankIdx > -1) {
+                    const parsedRank = parseFloat(r[rankIdx]);
+                    if (!isNaN(parsedRank)) rank = parsedRank;
+                }
+                let oldClass = '';
+                if (oldClassIdx > -1) oldClass = (r[oldClassIdx] || '').trim();
+                
+                let oldGrade = '';
+                if (oldGradeIdx > -1) {
+                    oldGrade = (r[oldGradeIdx] || '').trim();
+                    if (!detectedGrade && oldGrade && !isNaN(parseInt(oldGrade))) {
+                        detectedGrade = parseInt(oldGrade);
+                    }
+                }
+
+                let oldNum = '';
+                if (oldNumIdx > -1) oldNum = (r[oldNumIdx] || '').trim();
+
+                students.push({
+                    id: `s_${i}_${Math.random().toString(36).substr(2, 5)}`,
+                    name: name,
+                    gender: gender,
+                    info: info,
+                    rank: rank,
+                    oldClass: oldClass,
+                    oldGrade: oldGrade,
+                    oldNum: oldNum,
+                    originalRow: r
+                });
+            }
+
+            globalNewGrade = detectedGrade ? detectedGrade + 1 : null;
+
+            alert(`${students.length}명의 명단을 확인했어요!`);
+            btnAssign.disabled = false;
+            btnAssign.classList.add('animate-pulse');
+            
+            updateNumberSettingsUI();
+        }
+
+        // --- Step 4 UI Logic ---
+        function updateNumberSettingsUI() {
+            const order = getSortOrder(); 
+            let html = '';
+            
+            // 왼쪽 정렬 및 아래 입력 필드와 패딩 맞춤 (px-1)
+            html += `
+                <div class="flex items-center mb-2 px-0.5">
+                    <input type="checkbox" id="chkNoGender" class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                    <label for="chkNoGender" class="ml-2 font-bold text-gray-800">성별 구분 없음 (가나다순)</label>
+                </div>
+            `;
+
+            let maleStart = 1;
+            let femaleStart = 31; // Default updated to 31
+
+            if (order === 'femaleFirst') {
+                femaleStart = 1;
+                maleStart = 31;
+            }
+
+            const maleInput = createNumberInputHTML('남학생 시작 번호', 'text-blue-600', 'inputMaleStart', maleStart);
+            const femaleInput = createNumberInputHTML('여학생 시작 번호', 'text-pink-500', 'inputFemaleStart', femaleStart); 
+
+            if (order === 'maleFirst') {
+                html += `<div class="space-y-2">${maleInput}${femaleInput}</div>`;
+            } else {
+                html += `<div class="space-y-2">${femaleInput}${maleInput}</div>`;
+            }
+
+            numberSettingsDiv.innerHTML = html;
+
+            setTimeout(() => {
+                const chk = $('chkNoGender');
+                const inputs = document.querySelectorAll('.gender-inputs input');
+                const controls = document.querySelectorAll('.gender-inputs button');
+                const wrappers = document.querySelectorAll('.gender-inputs');
+                
+                chk.addEventListener('change', () => {
+                    inputs.forEach(inp => inp.disabled = chk.checked);
+                    controls.forEach(btn => btn.disabled = chk.checked);
+                    wrappers.forEach(div => div.style.opacity = chk.checked ? '0.3' : '1');
+                });
+
+                document.querySelectorAll('.btn-num-dec').forEach(btn => {
+                    btn.addEventListener('click', (e) => adjustNumberInput(e.target.dataset.target, -1));
+                });
+                document.querySelectorAll('.btn-num-inc').forEach(btn => {
+                    btn.addEventListener('click', (e) => adjustNumberInput(e.target.dataset.target, 1));
+                });
+
+            }, 0);
+        }
+
+        function createNumberInputHTML(label, colorClass, inputId, defaultVal) {
+            return `
+                <div class="flex items-center justify-between gender-inputs w-full">
+                    <span class="${colorClass} text-sm font-bold truncate mr-2">${label}:</span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button class="btn-num-dec w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 text-gray-700 font-bold leading-none flex items-center justify-center" data-target="${inputId}">-</button>
+                        <input type="number" id="${inputId}" value="${defaultVal}" class="w-12 border rounded px-1 text-center font-bold text-sm" min="1">
+                        <button class="btn-num-inc w-6 h-6 bg-gray-200 rounded hover:bg-gray-300 text-gray-700 font-bold leading-none flex items-center justify-center" data-target="${inputId}">+</button>
+                    </div>
+                </div>`;
+        }
+
+        function adjustNumberInput(targetId, delta) {
+            const input = $(targetId);
+            if (!input.disabled) {
+                let val = parseInt(input.value) || 0;
+                val += delta;
+                if (val < 1) val = 1;
+                input.value = val;
+            }
+        }
+
+        // --- Export to Excel Logic ---
+        function exportToExcel() {
+            if (classBuckets.length === 0) return;
+
+            const wb = XLSX.utils.book_new();
+            const order = getSortOrder();
+            const noGender = $('chkNoGender').checked;
+            
+            let defaultMaleStart = 1;
+            let defaultFemaleStart = 31;
+            if (order === 'femaleFirst') {
+                defaultFemaleStart = 1;
+                defaultMaleStart = 31;
+            }
+
+            const mInput = $('inputMaleStart');
+            const fInput = $('inputFemaleStart');
+            const mStart = mInput ? parseInt(mInput.value) || defaultMaleStart : defaultMaleStart;
+            const fStart = fInput ? parseInt(fInput.value) || defaultFemaleStart : defaultFemaleStart;
+
+            classBuckets.forEach((cls, idx) => {
+                const className = classNamesList[idx] || (idx + 1);
+                let sortedList = [];
+                
+                if (noGender) {
+                    sortedList = [...cls].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+                    sortedList = sortedList.map((s, i) => ({ ...s, newNum: i + 1 }));
+                } else {
+                    const males = cls.filter(s => isMale(s.gender)).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+                    const females = cls.filter(s => !isMale(s.gender)).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+                    
+                    const malesWithNum = males.map((s, i) => ({ ...s, newNum: mStart + i }));
+                    const femalesWithNum = females.map((s, i) => ({ ...s, newNum: fStart + i }));
+
+                    if (order === 'maleFirst') {
+                        sortedList = [...malesWithNum, ...femalesWithNum];
+                    } else {
+                        sortedList = [...femalesWithNum, ...malesWithNum];
+                    }
+                    sortedList.sort((a, b) => a.newNum - b.newNum);
+                }
+
+                const wsData = [
+                    ['개편학년', '개편반', '번호', '이름', '성별', '이전학년', '이전반', '이전번호', '이름', '특이사항']
+                ];
+
+                sortedList.forEach(s => {
+                    let newGrade = globalNewGrade || ''; 
+                    if (!newGrade && s.oldGrade) {
+                         const oldGInt = parseInt(s.oldGrade);
+                         if (!isNaN(oldGInt)) newGrade = oldGInt + 1;
+                    }
+
+                    wsData.push([
+                        newGrade,           
+                        className,          
+                        s.newNum,           
+                        s.name,             
+                        s.gender,           
+                        s.oldGrade,         
+                        s.oldClass,         
+                        s.oldNum,           
+                        s.name,             
+                        s.info              
+                    ]);
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, `${className}반`);
+            });
+
+            XLSX.writeFile(wb, '반편성_결과.xlsx');
+        }
+
+        // --- History Logic ---
+        function saveHistory() {
+            const snapshot = JSON.parse(JSON.stringify(classBuckets));
+            if (historyIndex < historyStack.length - 1) {
+                historyStack = historyStack.slice(0, historyIndex + 1);
+            }
+            historyStack.push(snapshot);
+            historyIndex++;
+            updateHistoryButtons();
+        }
+
+        function restoreHistory() {
+            if (historyIndex >= 0 && historyIndex < historyStack.length) {
+                classBuckets = JSON.parse(JSON.stringify(historyStack[historyIndex]));
+                renderClasses();
+                updateHistoryButtons();
+            }
+        }
+
+        function updateHistoryButtons() {
+            btnUndo.disabled = (historyIndex <= 0);
+            btnRedo.disabled = (historyIndex >= historyStack.length - 1);
+            
+            btnUndo.style.opacity = btnUndo.disabled ? 0.3 : 1;
+            btnRedo.style.opacity = btnRedo.disabled ? 0.3 : 1;
+        }
+
+        // --- Assignment & Sorting ---
+
+        function assignClassesByRank(numClasses) {
+            classBuckets = Array.from({ length: numClasses }, () => []);
+            const males = students.filter(s => isMale(s.gender));
+            const females = students.filter(s => !isMale(s.gender));
+
+            distributeGenderGroup(males, numClasses);
+            distributeGenderGroup(females, numClasses);
+
+            classBuckets.forEach(cls => sortClassBucket(cls));
+        }
+
+        function distributeGenderGroup(groupStudents, numClasses) {
+            const rankGroups = {};
+            groupStudents.forEach(s => {
+                const r = s.rank;
+                if (!rankGroups[r]) rankGroups[r] = [];
+                rankGroups[r].push(s);
+            });
+
+            const ranks = Object.keys(rankGroups).map(Number).sort((a, b) => a - b);
+            
+            const bucketOldClassCounts = Array.from({ length: numClasses }, () => ({}));
+
+            ranks.forEach(r => {
+                let group = rankGroups[r];
+                // Randomize internal order
+                group.sort(() => Math.random() - 0.5);
+
+                group.forEach(student => {
+                    const oldClass = student.oldClass ? String(student.oldClass) : 'unknown';
+                    
+                    // 1. Filter by Minimum Total Size (Round Robin by Rank)
+                    let minSize = Infinity;
+                    classBuckets.forEach(b => {
+                        if (b.length < minSize) minSize = b.length;
+                    });
+                    
+                    const sizeCandidates = [];
+                    classBuckets.forEach((b, idx) => {
+                        if (b.length === minSize) sizeCandidates.push(idx);
+                    });
+
+                    // 2. Filter by Minimum Old Class Count (Balance Old Class)
+                    let minOldClassCount = Infinity;
+                    sizeCandidates.forEach(idx => {
+                        const count = bucketOldClassCounts[idx][oldClass] || 0;
+                        if (count < minOldClassCount) minOldClassCount = count;
+                    });
+
+                    const finalCandidates = sizeCandidates.filter(idx => {
+                        const count = bucketOldClassCounts[idx][oldClass] || 0;
+                        return count === minOldClassCount;
+                    });
+
+                    // 3. Pick Random from Candidates
+                    const chosenIdx = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
+
+                    // Assign
+                    classBuckets[chosenIdx].push(student);
+                    
+                    // Update Counts
+                    if (!bucketOldClassCounts[chosenIdx][oldClass]) {
+                        bucketOldClassCounts[chosenIdx][oldClass] = 0;
+                    }
+                    bucketOldClassCounts[chosenIdx][oldClass]++;
+                });
+            });
+        }
+
+        function sortClassBucket(bucket) {
+            const order = getSortOrder();
+            bucket.sort((a, b) => {
+                const isManA = isMale(a.gender);
+                const isManB = isMale(b.gender);
+
+                if (order === 'maleFirst') {
+                    if (isManA && !isManB) return -1;
+                    if (!isManA && isManB) return 1;
+                } else {
+                    if (!isManA && isManB) return -1; 
+                    if (isManA && !isManB) return 1;
+                }
+                if (a.rank !== b.rank) return a.rank - b.rank;
+                const ocA = parseFloat(a.oldClass) || 999;
+                const ocB = parseFloat(b.oldClass) || 999;
+                if (ocA !== ocB) return ocA - ocB;
+                return a.name.localeCompare(b.name, 'ko');
+            });
+        }
+
+        // --- Rendering ---
+
+        function renderClasses() {
+            classesContainer.innerHTML = '';
+            const totalClasses = classBuckets.length;
+            const order = getSortOrder();
+
+            classesContainer.className = "flex flex-wrap justify-center gap-4 w-full";
+            
+            classBuckets.forEach((cls, idx) => {
+                const className = classNamesList[idx] || (idx + 1);
+                const board = document.createElement('div');
+                
+                const displayName = `${globalNewGrade ? globalNewGrade + '학년 ' : ''}${className}반`;
+
+                let widthStyle = "";
+                if (totalClasses <= 6) {
+                    widthStyle = `width: calc((100% - ${(totalClasses-1)} * 1rem) / ${totalClasses});`;
+                } else {
+                    widthStyle = `width: calc((100% - 5 * 1rem) / 6);`;
+                }
+
+                if (widthStyle) board.setAttribute('style', widthStyle);
+                board.className = 'chalkboard p-4 relative';
+                board.dataset.classIdx = idx;
+
+                const mCount = cls.filter(s => isMale(s.gender)).length;
+                const fCount = cls.length - mCount;
+
+                let genderCountHtml = '';
+                if (order === 'maleFirst') {
+                    genderCountHtml = `<span class="text-blue-300 ml-1">남:${mCount}</span><span class="text-pink-300 ml-1">여:${fCount}</span>`;
+                } else {
+                    genderCountHtml = `<span class="text-pink-300 ml-1">여:${fCount}</span><span class="text-blue-300 ml-1">남:${mCount}</span>`;
+                }
+
+                board.innerHTML = `
+                    <div class="border-b-2 border-gray-400 pb-2 mb-2 flex justify-between items-center border-dashed shrink-0">
+                        <span class="text-2xl font-bold text-yellow-300 whitespace-nowrap">${displayName}</span>
+                        <div class="text-xs text-right text-gray-300">
+                            <div class="font-bold text-lg">${cls.length}명</div>
+                            ${genderCountHtml}
+                        </div>
+                    </div>
+                `;
+
+                const area = document.createElement('div');
+                if (totalClasses === 2 || totalClasses === 3) {
+                    area.className = 'board-content flex flex-row flex-wrap content-start gap-2 drop-zone transition-colors rounded-lg p-1';
+                } else {
+                    area.className = 'board-content flex flex-col content-start gap-2 drop-zone transition-colors rounded-lg p-1';
+                }
+                area.dataset.classIdx = idx;
+                
+                area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('droppable-hover'); });
+                area.addEventListener('dragleave', e => { area.classList.remove('droppable-hover'); });
+                area.addEventListener('drop', handleDrop);
+
+                cls.forEach(s => {
+                    area.appendChild(createStudentElement(s, idx, totalClasses));
+                });
+
+                board.appendChild(area);
+                classesContainer.appendChild(board);
+            });
+        }
+
+        function createStudentElement(student, classIdx, totalClasses) {
+            const el = document.createElement('div');
+            
+            let colorClass = 'bg-[#FFF740]'; 
+            if (isMale(student.gender)) { colorClass = 'boy'; } 
+            else if (student.gender) { colorClass = 'girl'; }
+            
+            let widthClass = "w-full"; 
+            let style = "";
+            if (totalClasses === 2) {
+                style = "width: calc((100% - 1rem) / 3);";
+            } else if (totalClasses === 3) {
+                style = "width: calc((100% - 0.5rem) / 2);";
+            }
+
+            el.className = `post-it ${colorClass} rounded-md px-3 py-1 hover:z-20 ${widthClass}`;
+            if (style) el.setAttribute('style', style);
+            
+            el.draggable = true;
+            el.id = student.id;
+            
+            el.innerHTML = `
+                <div class="flex items-center gap-2 overflow-hidden w-full">
+                    <span class="font-bold text-lg whitespace-nowrap">${student.name}</span>
+                    <span class="text-xs bg-black text-white px-2 rounded whitespace-nowrap min-w-[24px] text-center font-bold">${student.rank === 999 ? '-' : student.rank}</span>
+                    ${student.info ? `<span class="text-xs bg-yellow-300 text-black px-1 rounded font-bold whitespace-nowrap truncate max-w-[80px] border border-yellow-400">${student.info}</span>` : ''}
+                    <div class="flex-1 text-right flex justify-end items-center gap-1 overflow-hidden">
+                        ${student.oldClass ? `<span class="text-xs text-gray-700 font-bold truncate">(${student.oldClass}반)</span>` : ''} 
+                    </div>
+                </div>
+            `;
+
+            el.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({ studentId: student.id, fromClassIdx: classIdx }));
+                setTimeout(() => el.classList.add('opacity-50'), 0);
+            });
+            el.addEventListener('dragend', () => el.classList.remove('opacity-50'));
+
+            return el;
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const zone = e.currentTarget; 
+            zone.classList.remove('droppable-hover');
+
+            const dataRaw = e.dataTransfer.getData('text/plain');
+            if (!dataRaw) return;
+
+            const data = JSON.parse(dataRaw);
+            const toClassIdx = parseInt(zone.dataset.classIdx);
+            const fromClassIdx = parseInt(data.fromClassIdx);
+
+            if (toClassIdx === fromClassIdx) return;
+
+            // Save history AFTER the modification
+            saveHistory();
+
+            const studentIdx = classBuckets[fromClassIdx].findIndex(s => s.id === data.studentId);
+            if (studentIdx === -1) return;
+
+            const student = classBuckets[fromClassIdx].splice(studentIdx, 1)[0];
+            classBuckets[toClassIdx].push(student);
+
+            sortClassBucket(classBuckets[toClassIdx]);
+            renderClasses();
+            
+            // Save history AFTER the modification
+            saveHistory();
+        }
+
+        // --- Helpers ---
+        function adjustClassCount(delta) {
+            const input = $('classCount');
+            let val = parseInt(input.value) + delta;
+            if (val < 1) val = 1;
+            if (val > 20) val = 20;
+            input.value = val;
+        }
+
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
+            let inQuote = false;
+            let val = '';
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (c === '"') { inQuote = !inQuote; }
+                else if ((c === ',' || c === '\n' || c === '\r') && !inQuote) {
+                    if (c === '\r' && text[i+1] === '\n') continue;
+                    if (c === '\n' || c === '\r') { row.push(val); rows.push(row); row = []; val = ''; }
+                    else { row.push(val); val = ''; }
+                } else { val += c; }
+            }
+            if (val || row.length) { row.push(val); rows.push(row); }
+            return rows;
+        }
+
+        function getColIndex(headers, keywords) {
+            for (const k of keywords) {
+                const idx = headers.findIndex(h => h.includes(k));
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        function isMale(genderStr) {
+            if (!genderStr) return false;
+            const g = String(genderStr).toLowerCase();
+            return g.includes('남') || g === 'm' || g === 'male';
+        }
+
+        function getSortOrder() {
+            const radio = document.querySelector('input[name="genderOrder"]:checked');
+            return radio ? radio.value : 'maleFirst';
+        }
+
+        function downloadText(filename, content) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+    </script>
+</body>
+</html>
