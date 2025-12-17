@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초등학교 반 편성 v1.1 (KSMS APPs)</title>
+    <title>초등학교 반 편성 v1.2 (KSMS APPs)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts (Jua) -->
@@ -65,6 +65,9 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 0;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         .post-it:hover {
@@ -75,6 +78,10 @@
 
         .post-it:active {
             cursor: grabbing;
+        }
+        
+        .post-it.opacity-30 {
+            opacity: 0.3;
         }
 
         .post-it.girl { background-color: #FFB7B2; }
@@ -140,7 +147,7 @@
     <!-- Header (Sticky) -->
     <header class="sticky-header flex items-center justify-center relative px-4">
         <h1 class="text-3xl md:text-5xl text-orange-500 drop-shadow-lg text-center w-full">
-            <i class="fas fa-school mr-3"></i>초등학교 반 편성 v1.1 (KSMS APPs)
+            <i class="fas fa-school mr-3"></i>초등학교 반 편성 v1.2 (KSMS APPs)
         </h1>
         
         <button id="btnFullscreen" class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white text-gray-600 w-10 h-10 rounded-lg shadow-md hover:bg-orange-100 hover:text-orange-500 transition flex items-center justify-center" title="전체화면">
@@ -183,14 +190,15 @@
                     <h2 class="text-2xl text-green-700 mb-2 flex items-center gap-2">
                         <i class="fas fa-file-csv"></i> 명단 불러오기
                     </h2>
-                    <div class="space-y-3 flex-1 flex flex-col justify-center">
-                        <label id="dropZone" class="block w-full h-full cursor-pointer bg-green-50 hover:bg-green-100 border-2 border-dashed border-green-300 rounded-xl p-4 text-center transition flex flex-col items-center justify-center">
-                            <span class="text-gray-500 pointer-events-none text-sm"><i class="fas fa-cloud-upload-alt text-2xl mb-1"></i><br>CSV 파일을 드래그하거나<br>클릭해서 올려주세요</span>
+                    <div class="space-y-2 flex-1 flex flex-col justify-center">
+                        <label id="dropZone" class="block w-full cursor-pointer bg-green-50 hover:bg-green-100 border-2 border-dashed border-green-300 rounded-xl p-3 text-center transition flex flex-col items-center justify-center" style="height: 45%;">
+                            <span class="text-gray-500 pointer-events-none text-sm"><i class="fas fa-cloud-upload-alt text-xl mb-1"></i><br>CSV 파일 드래그 또는 클릭</span>
                             <input type="file" id="csvFile" accept=".csv" class="hidden">
                         </label>
-                        <div class="flex justify-between items-center text-sm">
-                            <span id="fileNameDisplay" class="text-gray-400 truncate max-w-[120px]">선택된 파일 없음</span>
-                            <button id="btnSample" class="text-green-600 hover:underline hover:text-green-800 text-xs">
+                        <div class="flex flex-col items-center text-sm space-y-1">
+                            <span id="studentCountDisplay" class="text-green-600 font-bold text-lg">불러온 학생: 0명</span>
+                            <span id="fileNameDisplay" class="text-gray-400 truncate max-w-[180px] text-xs">선택된 파일 없음</span>
+                            <button id="btnSample" class="bg-green-600 hover:bg-green-700 text-white text-xs mt-2 px-3 py-1 rounded font-bold">
                                 <i class="fas fa-download"></i> 샘플 받기
                             </button>
                         </div>
@@ -319,6 +327,14 @@
         
         let historyStack = [];
         let historyIndex = -1;
+        
+        let wasFullscreen = false;
+        
+        // 터치 드래그 관련 변수
+        let touchDragData = null;
+        let touchClone = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
 
         const classNamesList = ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차', '카', '타', '파', '하', '거', '너', '더', '러', '머', '버'];
         
@@ -329,6 +345,7 @@
         const btnAssign = $('btnAssign');
         const btnDownload = $('btnDownload');
         const fileNameDisplay = $('fileNameDisplay');
+        const studentCountDisplay = $('studentCountDisplay');
         const classesContainer = $('classesContainer');
         const resultArea = $('resultArea');
         const genderOrderRadios = document.querySelectorAll('input[name="genderOrder"]');
@@ -380,6 +397,11 @@
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files && e.target.files[0];
             if (file) processFile(file);
+        });
+        
+        // 파일 입력 클릭 전 전체화면 상태 저장
+        dropZone.addEventListener('click', () => {
+            wasFullscreen = !!document.fullscreenElement;
         });
 
         $('btnSample').addEventListener('click', () => {
@@ -538,11 +560,21 @@
 
             globalNewGrade = detectedGrade ? detectedGrade + 1 : null;
 
-            alert(`${students.length}명의 명단을 확인했어요!`);
+            studentCountDisplay.innerText = `불러온 학생: ${students.length}명`;
+            studentCountDisplay.classList.remove('text-gray-400');
+            studentCountDisplay.classList.add('text-green-600');
             btnAssign.disabled = false;
             btnAssign.classList.add('animate-pulse');
             
             updateNumberSettingsUI();
+            
+            // 전체화면 복원
+            if (wasFullscreen && !document.fullscreenElement) {
+                setTimeout(() => {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                    btnFullscreen.innerHTML = '<i class="fas fa-compress text-lg"></i>';
+                }, 100);
+            }
         }
 
         // --- Step 4 UI Logic ---
@@ -904,11 +936,11 @@
             
             el.innerHTML = `
                 <div class="flex items-center gap-2 overflow-hidden w-full">
-                    <span class="font-bold text-lg whitespace-nowrap">${student.name}</span>
+                    ${student.oldClass ? `<span class="text-xs bg-white text-black px-2 rounded whitespace-nowrap font-bold border border-gray-300">${student.oldClass}반</span>` : ''}
+                    <span class="font-bold text-lg text-black whitespace-nowrap">${student.name}</span>
                     <span class="text-xs bg-black text-white px-2 rounded whitespace-nowrap min-w-[24px] text-center font-bold">${student.rank === 999 ? '-' : student.rank}</span>
-                    ${student.info ? `<span class="text-xs bg-yellow-300 text-black px-1 rounded font-bold whitespace-nowrap truncate max-w-[80px] border border-yellow-400">${student.info}</span>` : ''}
                     <div class="flex-1 text-right flex justify-end items-center gap-1 overflow-hidden">
-                        ${student.oldClass ? `<span class="text-xs text-gray-700 font-bold truncate">(${student.oldClass}반)</span>` : ''} 
+                        ${student.info ? `<span class="text-xs bg-yellow-300 text-red-800 px-1 rounded font-bold whitespace-nowrap truncate max-w-[80px]">${student.info}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -919,7 +951,114 @@
             });
             el.addEventListener('dragend', () => el.classList.remove('opacity-50'));
 
+            // 터치 이벤트 추가
+            el.addEventListener('touchstart', e => {
+                if (e.touches.length !== 1) return;
+                
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                
+                touchDragData = { studentId: student.id, fromClassIdx: classIdx };
+                
+                // 복제본 생성
+                touchClone = el.cloneNode(true);
+                touchClone.style.position = 'fixed';
+                touchClone.style.zIndex = '9999';
+                touchClone.style.pointerEvents = 'none';
+                touchClone.style.opacity = '0.8';
+                touchClone.style.width = el.offsetWidth + 'px';
+                touchClone.style.transform = 'rotate(3deg) scale(1.05)';
+                touchClone.style.boxShadow = '0 8px 20px rgba(0,0,0,0.3)';
+                touchClone.style.left = (touch.clientX - el.offsetWidth / 2) + 'px';
+                touchClone.style.top = (touch.clientY - 20) + 'px';
+                document.body.appendChild(touchClone);
+                
+                el.classList.add('opacity-30');
+                
+                e.preventDefault();
+            }, { passive: false });
+
+            el.addEventListener('touchmove', e => {
+                if (!touchClone || e.touches.length !== 1) return;
+                
+                const touch = e.touches[0];
+                touchClone.style.left = (touch.clientX - touchClone.offsetWidth / 2) + 'px';
+                touchClone.style.top = (touch.clientY - 20) + 'px';
+                
+                // 드롭 존 하이라이트
+                const dropZones = document.querySelectorAll('.drop-zone');
+                dropZones.forEach(zone => {
+                    const rect = zone.getBoundingClientRect();
+                    if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                        touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                        zone.classList.add('droppable-hover');
+                    } else {
+                        zone.classList.remove('droppable-hover');
+                    }
+                });
+                
+                e.preventDefault();
+            }, { passive: false });
+
+            el.addEventListener('touchend', e => {
+                if (!touchClone || !touchDragData) {
+                    cleanupTouchDrag();
+                    return;
+                }
+                
+                const touch = e.changedTouches[0];
+                const dropZones = document.querySelectorAll('.drop-zone');
+                let targetZone = null;
+                
+                dropZones.forEach(zone => {
+                    const rect = zone.getBoundingClientRect();
+                    if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                        touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                        targetZone = zone;
+                    }
+                    zone.classList.remove('droppable-hover');
+                });
+                
+                if (targetZone) {
+                    const toClassIdx = parseInt(targetZone.dataset.classIdx);
+                    const fromClassIdx = touchDragData.fromClassIdx;
+                    
+                    if (toClassIdx !== fromClassIdx) {
+                        const studentIdx = classBuckets[fromClassIdx].findIndex(s => s.id === touchDragData.studentId);
+                        if (studentIdx !== -1) {
+                            const movedStudent = classBuckets[fromClassIdx].splice(studentIdx, 1)[0];
+                            classBuckets[toClassIdx].push(movedStudent);
+                            sortClassBucket(classBuckets[toClassIdx]);
+                            renderClasses();
+                            saveHistory();
+                        }
+                    }
+                }
+                
+                cleanupTouchDrag();
+                e.preventDefault();
+            }, { passive: false });
+
             return el;
+        }
+        
+        function cleanupTouchDrag() {
+            if (touchClone && touchClone.parentNode) {
+                touchClone.parentNode.removeChild(touchClone);
+            }
+            touchClone = null;
+            touchDragData = null;
+            
+            // 모든 포스트잇의 투명도 복원
+            document.querySelectorAll('.post-it').forEach(el => {
+                el.classList.remove('opacity-30');
+            });
+            
+            // 모든 드롭 존 하이라이트 제거
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('droppable-hover');
+            });
         }
 
         function handleDrop(e) {
